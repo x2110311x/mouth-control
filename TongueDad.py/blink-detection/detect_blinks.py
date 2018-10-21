@@ -7,6 +7,7 @@ from scipy.spatial import distance as dist
 from imutils.video import FileVideoStream
 from imutils.video import VideoStream
 from imutils import face_utils
+from math import sqrt
 import numpy as np
 import argparse
 import imutils
@@ -68,6 +69,8 @@ predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 (rStart, rEnd) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
 (lbStart, lbEnd) = face_utils.FACIAL_LANDMARKS_IDXS["left_eyebrow"]
 (rbStart, rbEnd) = face_utils.FACIAL_LANDMARKS_IDXS["right_eyebrow"]
+(mStart, mEnd) = face_utils.FACIAL_LANDMARKS_IDXS["mouth"]
+
 
 # start the video stream thread
 print("[INFO] starting video stream thread...")
@@ -83,6 +86,8 @@ closedcalibrated = False
 opencalibrated = False
 # loop over frames from the video stream
 (x,y,w,h) = (0,0,0,0)
+(mx,my) = (0,0)
+(mtx,mtx) = (0,0)
 while True:
 	key = cv2.waitKey(1) & 0xFF
 	# if this is a file video stream, then we need to check if
@@ -116,6 +121,7 @@ while True:
 		rightEye = shape[rStart:rEnd]
 		leftBrow = shape[lbStart:lbEnd]
 		rightBrow = shape[rbStart:rbEnd]
+		mouth = shape[mStart:mEnd]
 		leftEAR = eye_aspect_ratio(leftEye)
 		rightEAR = eye_aspect_ratio(rightEye)
 		ear = (leftEAR + rightEAR) / 2.0
@@ -127,18 +133,22 @@ while True:
 				cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
 			cv2.putText(frame, "EAR: {:.3f}".format(ear), (650, 30),
 				cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+			cv2.putText(frame, "Dist: {}".format(avgdist), (650, 70),
+				cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 			if key == ord("c"):
 				EYE_CLOSE_THRESH = ear - (ear*.090)
 				EYE_OPEN_THRESH = avgdist + (avgdist * .05)
+				(mx,my) = (mouth[9][0],mouth[9][1])
 				fullcalibrated = True
 
 		else:
+			(mtx,mty) = (mouth[9][0],mouth[9][1])
 			(x,y,w,h) = face_utils.rect_to_bb(rect)
 			cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
+			cv2.circle(frame, (mtx, mty), 1, (0, 0, 255), -1)
 			# show the face number
 			cv2.putText(frame, "Face", (x - 10, y - 10),
-				cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+					cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
 			# compute the convex hull for the left and right eye, then
 			# visualize each of the eyes
@@ -150,7 +160,9 @@ while True:
 			cv2.drawContours(frame, [rightBrowHull], -1, (0, 255, 0), 1)
 			cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
 			cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
-
+			mousex = int(abs((mtx-mx))* 10.8)
+			mousey = int(abs((mty-my)) * 19.2)
+			pyautogui.moveTo(mousex, mousey, duration=0.05)
 			# check to see if the eye aspect ratio is below the blink
 			# threshold, and if so, increment the blink frame counter
 			if ear < EYE_CLOSE_THRESH:
@@ -182,6 +194,8 @@ while True:
 			cv2.putText(frame, "EAR: {:.3f}".format(ear), (300, 30),
 				cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 			cv2.putText(frame, "Dist: {}".format(avgdist), (300, 70),
+				cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+			cv2.putText(frame, "Mouth: ({},{})".format(mtx, mty), (600, 30),
 				cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
 
