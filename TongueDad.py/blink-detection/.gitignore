@@ -1,0 +1,4 @@
+#exclude everything except directory foo/bar
+!/*
+mouth_control.zip
+*.exe
