@@ -16,7 +16,7 @@ import dlib
 import cv2
 import pyautogui
 
-pyautogui.FAILSAFE = True
+pyautogui.FAILSAFE = False
 width, height = pyautogui.size()
 
 def eye_aspect_ratio(eye):
@@ -48,7 +48,7 @@ args = vars(ap.parse_arg'''
 # frames the eye must be below the threshold
 EYE_CLOSE_THRESH = 0
 EYE_OPEN_THRESH = 0
-EYE_CLOSE_CONSEC_FRAMES = 2
+EYE_CLOSE_CONSEC_FRAMES = 4
 EYE_OPEN_CONSEC_FRAMES = 4
 
 # initialize the frame counters and the total number of blinks
@@ -88,6 +88,8 @@ opencalibrated = False
 (x,y,w,h) = (0,0,0,0)
 (mx,my) = (0,0)
 (mtx,mtx) = (0,0)
+(mousex,mousey) = (960,540)
+framenum = 1
 while True:
 	key = cv2.waitKey(1) & 0xFF
 	# if this is a file video stream, then we need to check if
@@ -100,7 +102,7 @@ while True:
 	# channels)
 	frame = vs.read()
 	frame = cv2.flip(frame,1)
-	frame = imutils.resize(frame, width=1000)
+	frame = imutils.resize(frame, width=900)
 	gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
 	# detect faces in the grayscale frame
@@ -142,10 +144,16 @@ while True:
 				fullcalibrated = True
 
 		else:
-			(mtx,mty) = (mouth[9][0],mouth[9][1])
+			(mtx1,mty1) = (mouth[9][0],mouth[9][1])
+			(mtx2,mty2) = (mouth[8][0],mouth[8][1])
+			(mtx3,mty3) = (mouth[10][0],mouth[10][1])
+
+			(mtx, mty) = (int((mtx1 + mtx2 + mtx3)/3),int((mty1 + mty2 + mty3)/3))
+
 			(x,y,w,h) = face_utils.rect_to_bb(rect)
+
 			cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-			cv2.circle(frame, (mtx, mty), 1, (0, 0, 255), -1)
+			cv2.circle(frame, (mtx, mty), 5, (0, 255, 0), -1)
 			# show the face number
 			cv2.putText(frame, "Face", (x - 10, y - 10),
 					cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
@@ -160,9 +168,11 @@ while True:
 			cv2.drawContours(frame, [rightBrowHull], -1, (0, 255, 0), 1)
 			cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
 			cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
-			mousex = int(abs((mtx-mx))* 10.8)
-			mousey = int(abs((mty-my)) * 19.2)
-			pyautogui.moveTo(mousex, mousey, duration=0.05)
+
+			mousex = int((mtx-mx) * 3)
+			mousey = int((mty-my) * 1.5)
+			pyautogui.moveRel(mousex, mousey,duration=.05)
+
 			# check to see if the eye aspect ratio is below the blink
 			# threshold, and if so, increment the blink frame counter
 			if ear < EYE_CLOSE_THRESH:
@@ -184,7 +194,6 @@ while True:
 					pyautogui.click(pyautogui.position(),button="right")
 
 				RCOUNTER = 0
-
 			# draw the total number of blinks on the frame along with
 			# the computed eye aspect ratio for the frame
 			cv2.putText(frame, "Left Clicks: {}".format(LTOTAL), (10, 30),
@@ -197,14 +206,20 @@ while True:
 				cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 			cv2.putText(frame, "Mouth: ({},{})".format(mtx, mty), (600, 30),
 				cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-
+			cv2.putText(frame, "Mouse: ({},{})".format(pyautogui.position()[0],pyautogui.position()[1]), (600, 70),
+				cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
 	# show the frame
-	cv2.imshow("Frame", frame)
+	cv2.imshow("Mouth Control Console", frame)
 
 	# if the `q` key was pressed, break from the loop
 	if key == ord("q"):
 		break
+	if key == ord("c"):
+		EYE_CLOSE_THRESH = ear - (ear*.090)
+		EYE_OPEN_THRESH = avgdist + (avgdist * .05)
+		(mx,my) = (mouth[9][0],mouth[9][1])
+		pyautogui.moveTo(960, 540,duration=.10)
 
 # do a bit of cleanup
 cv2.destroyAllWindows()
